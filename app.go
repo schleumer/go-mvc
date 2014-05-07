@@ -2,6 +2,7 @@ package gomvc
 
 import (
 	"fmt"
+	//"github.com/flosch/pongo"
 	"github.com/gorilla/mux"
 	//"log"
 	"net/http"
@@ -13,7 +14,7 @@ import (
 )
 
 func handle(res http.ResponseWriter, req *http.Request) {
-	fmt.Fprintf(res, "<script>console.log('xd');</script>\n"+strings.Repeat("\n", 1024))
+	fmt.Fprintf(res, "<script>console.log('xd');</script>\n"+strings.Repeat("\n", 256))
 	f := res.(http.Flusher)
 	f.Flush()
 	amt := time.Duration(10000)
@@ -43,17 +44,23 @@ func handle2(res http.ResponseWriter, req *http.Request) {
 type FutureReq func(res http.ResponseWriter, req *http.Request)
 type RouteMap map[string]interface{}
 
-func ReqWrapper(handler interface{}) FutureReq {
-	return func(res http.ResponseWriter, req *http.Request) {
-		val := reflect.ValueOf(handler)
-		typ := reflect.New(val.Type().In(0)).Elem().Interface()
-		nw := NewWrapper(req, res)
-		val.Call([]reflect.Value{reflect.ValueOf(typ), reflect.ValueOf(nw)})
-	}
+type App struct {
+	StaticRoot string
+	ViewsRoot  string
+	Routing    RouteMap
 }
 
-type App struct {
-	Routing RouteMap
+func (a App) ReqWrapper(handler interface{}) FutureReq {
+	return func(res http.ResponseWriter, req *http.Request) {
+		val := reflect.ValueOf(handler)
+		attrType := val.Type().In(0)
+		typ := reflect.New(attrType)
+		el := typ.Elem()
+		inst := el.Interface()
+
+		nw := Wrapper{req, res, a}
+		val.Call([]reflect.Value{reflect.ValueOf(inst), reflect.ValueOf(nw)})
+	}
 }
 
 func (a App) Run() {
@@ -70,9 +77,9 @@ func (a App) Run() {
 		method := routeParams[0]
 		route := routeParams[1]
 		handler := v
-		r.HandleFunc(route, ReqWrapper(handler)).Methods(method)
+		r.HandleFunc(route, a.ReqWrapper(handler)).Methods(method)
 	}
-
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir(a.StaticRoot)))
 	http.Handle("/", r)
 	fmt.Println("Started on " + "8080")
 	http.ListenAndServe(":8080", nil)
