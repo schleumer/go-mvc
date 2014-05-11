@@ -2,8 +2,10 @@ package gomvc
 
 import (
 	"fmt"
+	"path"
 	//"github.com/flosch/pongo"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 	//"log"
 	"net/http"
 	//"os"
@@ -45,9 +47,11 @@ type FutureReq func(res http.ResponseWriter, req *http.Request)
 type RouteMap map[string]interface{}
 
 type App struct {
-	StaticRoot string
-	ViewsRoot  string
-	Routing    RouteMap
+	StaticRoot  string
+	ViewsRoot   string
+	ProjectPath string
+	Routing     RouteMap
+	Store       *sessions.FilesystemStore
 }
 
 func (a App) ReqWrapper(handler interface{}) FutureReq {
@@ -57,13 +61,20 @@ func (a App) ReqWrapper(handler interface{}) FutureReq {
 		typ := reflect.New(attrType)
 		el := typ.Elem()
 		inst := el.Interface()
+		session, sesserr := a.Store.Get(req, "topfriends-session")
 
-		nw := Wrapper{req, res, a}
+		if sesserr != nil {
+			fmt.Println(sesserr)
+		}
+
+		nw := Wrapper{req, res, a, session}
 		val.Call([]reflect.Value{reflect.ValueOf(inst), reflect.ValueOf(nw)})
 	}
 }
 
 func (a App) Run() {
+	fmt.Println(path.Join(a.ProjectPath, "tmp"))
+	a.Store = sessions.NewFilesystemStore(path.Join(a.ProjectPath, "tmp"), []byte("something-very-secret"))
 	r := mux.NewRouter()
 
 	/*dir, err := os.Getwd()

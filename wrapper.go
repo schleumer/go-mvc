@@ -3,15 +3,17 @@ package gomvc
 import (
 	"fmt"
 	"github.com/flosch/pongo"
+	"github.com/gorilla/sessions"
 	"net/http"
 	"path"
 	"strings"
 )
 
 type Wrapper struct {
-	Req *http.Request
-	Res http.ResponseWriter
-	App App
+	Req     *http.Request
+	Res     http.ResponseWriter
+	App     App
+	Session *sessions.Session
 }
 
 var (
@@ -32,10 +34,7 @@ func (w Wrapper) Render(p string) {
 	} else {
 		tpl = pongo.Must(pongo.FromFile(tplFile, nil))
 	}
-	out, err := tpl.Execute(&pongo.Context{
-		"lel": "law",
-		"iha": []string{"Oi", "Olá", "Omg"},
-	})
+	out, err := tpl.Execute(&pongo.Context{})
 	if err != nil {
 		panic(err)
 	}
@@ -52,6 +51,10 @@ func (w Wrapper) End() {
 	fmt.Fprintf(w.Res, strings.Repeat("\n", dirtyBits))
 	f := w.Res.(http.Flusher)
 	f.Flush()
+}
+
+func (w Wrapper) SaveSession() {
+	w.Session.Save(w.Req, w.Res)
 }
 
 /*func NewWrapper(req *http.Request, res http.ResponseWriter) Wrapper {
