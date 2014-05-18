@@ -16,6 +16,8 @@ type Wrapper struct {
 	Session *sessions.Session
 }
 
+type TemplateVars map[string]interface{}
+
 var (
 	dirtyBits int = 256
 )
@@ -27,14 +29,29 @@ func (w Wrapper) Write(str string) {
 var tplCache = map[string]*pongo.Template{}
 
 func (w Wrapper) Render(p string) {
+	w.RenderWithVars(p, TemplateVars{})
+}
+func (w Wrapper) RenderWithVars(p string, vars TemplateVars) {
+	w.Res.Header().Add("Content-type", "text/html")
+
 	tplFile := path.Join(w.App.ViewsRoot, p)
+
 	var tpl *pongo.Template
 	if val, ok := tplCache[tplFile]; ok {
 		tpl = val
 	} else {
 		tpl = pongo.Must(pongo.FromFile(tplFile, nil))
 	}
-	out, err := tpl.Execute(&pongo.Context{})
+
+	var context = pongo.Context{
+		"session": w.Session,
+	}
+
+	for k, v := range vars {
+		context[k] = v
+	}
+
+	out, err := tpl.Execute(&context)
 	if err != nil {
 		panic(err)
 	}
@@ -56,7 +73,3 @@ func (w Wrapper) End() {
 func (w Wrapper) SaveSession() {
 	w.Session.Save(w.Req, w.Res)
 }
-
-/*func NewWrapper(req *http.Request, res http.ResponseWriter) Wrapper {
-	return Wrapper{req, res}
-}*/

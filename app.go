@@ -2,10 +2,10 @@ package gomvc
 
 import (
 	"fmt"
-	"path"
-	//"github.com/flosch/pongo"
+	"github.com/boj/redistore"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
+	//"github.com/gorilla/sessions"
+	"path"
 	//"log"
 	"net/http"
 	//"os"
@@ -51,7 +51,8 @@ type App struct {
 	ViewsRoot   string
 	ProjectPath string
 	Routing     RouteMap
-	Store       *sessions.FilesystemStore
+	Store       *redistore.RediStore
+	//Store       *sessions.FilesystemStore
 }
 
 func (a App) ReqWrapper(handler interface{}) FutureReq {
@@ -61,20 +62,29 @@ func (a App) ReqWrapper(handler interface{}) FutureReq {
 		typ := reflect.New(attrType)
 		el := typ.Elem()
 		inst := el.Interface()
-		session, sesserr := a.Store.Get(req, "topfriends-session")
+		session, sesserr := a.Store.Get(req, "ayy-lmao-lel")
 
 		if sesserr != nil {
 			fmt.Println(sesserr)
+			res.Write([]byte("Fail"))
+		} else {
+			nw := Wrapper{req, res, a, session}
+			val.Call([]reflect.Value{reflect.ValueOf(inst), reflect.ValueOf(nw)})
 		}
-
-		nw := Wrapper{req, res, a, session}
-		val.Call([]reflect.Value{reflect.ValueOf(inst), reflect.ValueOf(nw)})
 	}
 }
 
 func (a App) Run() {
 	fmt.Println(path.Join(a.ProjectPath, "tmp"))
-	a.Store = sessions.NewFilesystemStore(path.Join(a.ProjectPath, "tmp"), []byte("something-very-secret"))
+	//a.Store = sessions.NewFilesystemStore(path.Join(a.ProjectPath, "tmp"), []byte("something-very-secret"))
+	iredistore, rediserr := redistore.NewRediStore(10, "tcp", ":6379", "", []byte("elellelsdll1234l235l2345l2354sdfkjngfj2435"))
+
+	if rediserr != nil {
+		fmt.Println(rediserr)
+	}
+	a.Store = iredistore
+	defer a.Store.Close()
+
 	r := mux.NewRouter()
 
 	/*dir, err := os.Getwd()

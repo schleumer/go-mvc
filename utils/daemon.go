@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -215,9 +216,10 @@ func main() {
 	}
 
 	defer watcher.Close()
+	var watcher_dir = path.Join(*flag_directory, "..")
 
 	if *flag_recursive == true {
-		err = filepath.Walk(*flag_directory, func(path string, info os.FileInfo, err error) error {
+		err = filepath.Walk(watcher_dir, func(path string, info os.FileInfo, err error) error {
 			if err == nil && info.IsDir() {
 				if excludedDirs.Matches(info.Name()) {
 					return filepath.SkipDir
@@ -233,7 +235,7 @@ func main() {
 		}
 
 	} else {
-		if err := watcher.Watch(*flag_directory); err != nil {
+		if err := watcher.Watch(watcher_dir); err != nil {
 			log.Fatal("watcher.Watch():", err)
 		}
 	}
